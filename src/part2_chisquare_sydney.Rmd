@@ -1,0 +1,112 @@
+---
+title: "part2_chisquare_sydney"
+author: "Sydney Rilum"
+date: "12/1/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+library(janitor)
+library(broom)
+```
+
+## Read in data
+
+```{r}
+lizards <- read_csv(here("data", "lizards.csv"))
+```
+
+Get counts of lizards by species:
+```{r}
+lizards %>% 
+  count(spp) %>% 
+  arrange(-n) # arranges in decreasing order
+```
+
+## Make a subset
+
+- UTST lizards
+- Sites: IBPE (enclosure grassland), RABB (rabbit mesquite site), "EAST" (east tarbush site)
+- Tail condition is recorded (W = whole, B = broken)
+
+```{r}
+utst <- lizards %>% 
+  filter(spp == "UTST") %>% 
+  filter(site %in% c("IBPE", "RABB", "EAST")) %>% #keep only these sites
+  filter(tail %in% c("B","W")) # excludes observations without recorded tail condition
+```
+
+## Find counts and proportions of lizards with broken or whole tails at each site
+```{r}
+utst %>% 
+  count(site, tail) # long format
+```
+
+```{r}
+tail_counts <- utst %>% 
+  janitor::tabyl(site, tail) # wide format, easier to compare across groups
+
+tail_proportions <- tail_counts %>% 
+  janitor::adorn_percentages() %>% # shows percentage/proportion of counts
+  janitor::adorn_pct_formatting(digits = 2) %>% # rounded to 2 digits
+  janitor::adorn_ns() # also displays actual counts
+```
+
+## Convert to a contingency table
+
+Use `column_to_rowname()`.
+```{r}
+lizard_ct <- tail_counts %>% 
+  column_to_rownames(var = "site") #variable is site, site names become column names instead of its own column
+```
+
+## Chi-square
+
+Are tail breakage and site related?
+
+Are the proportions so different that we think we have enough evidence to reject the H(null) of independence, to allow us to conclude that there is a significant effect of site on tail breakage.
+```{r}
+lizard_x2 <- chisq.test(lizard_ct)
+lizard_x2
+
+lizard_tidy <- broom::tidy(lizard_x2)
+```
+
+p = 0.001456
+
+Using a significance level of 0.05, yes we have sufficient evidence to reject the null hypothesis of independence, and retain alternative hypothesis that site and tail breakage are not independent.
+
+OR
+
+There is a significant association between site and lizard tail breakage.
+
+OR
+
+A significant effect of site on tail breakage.
+
+OR
+
+Site and tail breakage are not independent. 
+
+**There is a significant association (i.e. non-independence) between site and lizard tail breakage ($\chi$^2^(`r lizard_tidy$parameter`) = `r lizard_tidy$statistic`, *p* = `r lizard_tidy$p.value`).**
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
